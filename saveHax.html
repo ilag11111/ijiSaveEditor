@@ -1,0 +1,836 @@
+<!Doctype html>
+<html>
+    <head>
+        <title>iji Save hacker</title>
+        <meta charset='UTF-8'>
+        <script type='text/javascript'>
+var saveFile={};
+var save={};
+for (var i=0;i<5;i++){
+    save[i]={};
+    save[i].weapons={};
+    save[i].ammo={};
+    save[i].triggers={};
+    save[i].triggerB={};
+}
+var currentSlot=0;
+var options={};
+options.posters={};
+options.extras={};
+options.sds={};
+
+function addCharacters(line,amount){
+    var sum=0;
+    for (var j=0;j<amount;j++){
+        sum-=-line.charCodeAt(j);
+    }
+    return sum;
+}
+
+function getCheckSum(){
+    //Make sure we have all six important lines
+    var text=saveFile;
+    if (text.length<6){
+        alert("Not enough lines.");
+        return;
+    }
+    
+    //Add up the lines
+    var totalsum=0;
+    for (var i=0;i<5;i++){
+        if (text[i].length!=55){
+                alert("Line "+i+" should have a length of 55.\nIs: "+text[i].length);
+                return;
+        }
+        totalsum+=addCharacters(text[i],55);
+    }
+    //Line 5 is a different length
+    if (text[5].length!=48){
+        alert("Line 5 should have a length of 48.\nIs: "+text[5].length);
+        return;
+    }
+    totalsum+=addCharacters(text[5],45);
+    
+    //Static multiplication for shits and giggles
+    totalsum*=137;
+    
+    //Multiply based on character in 8th position.  I hope this is right enough.
+    switch((totalsum.toString())[7]){
+        case 0:
+            totalsum*=2;
+            break;
+        case 1:
+            totalsum*=3;
+            break;
+        case 2:
+            totalsum*=7;
+            break;
+        case 3:
+            totalsum*=11;
+            break;
+        case 4:
+            totalsum*=12;
+            break;
+        case 5:
+            totalsum*=15;
+            break;
+        case 6:
+            totalsum*=18;
+            break;
+        case 7:
+            totalsum*=21;
+            break;
+        case 8:
+            totalsum*=25;
+            break;
+        case 9:
+            totalsum*=29;
+            break;
+    }
+    
+    //Finally, 'unique positon values.'
+    var sumincrem=0; //I have no idea what this does.
+    for (var i=0;i<5;i++){
+        for (var j=0;j<55;j++){
+            sumincrem++;
+            totalsum+=sumincrem*(parseFloat(text[i][j])+1);
+        }
+    }
+    totalsum*=(totalsum.toString()).charCodeAt(6);
+    sumincrem=300;
+    for (var i=0;i<45;i++){
+        sumincrem+=1;
+        totalsum+=sumincrem*(text[5].charCodeAt(i)+1)
+    }
+    totalsum*=(totalsum.toString()).charCodeAt(6);
+    totalsum+=1;
+    
+    //Format it
+    //Scientific Notation.  14 decimal places.  4 E places
+    var output=totalsum.toExponential(14);
+    output=output.replace('e','E');
+    var expo=output.split("+")[1];
+    while (expo.length<4){
+        expo="0"+expo;
+    }
+    output=output.replace(/\+\d+/,"+"+expo);
+    
+    //Set It
+    return output;
+    //document.getElementById('checksum').value=output;
+}
+
+function cap(value,minVal,maxVal){
+    value=parseInt(value);
+    if ((typeof value === 'undefined')||(isNaN(value))||(value<minVal)){
+        return minVal;
+    } else if (value>maxVal) {
+        return maxVal;
+    }
+    return value;
+}
+
+function loadSave(){
+    saveFile=document.getElementById('saveContents').value.split('\n'); 
+    for (var i=0;i<5;i++){
+        loadSaveGame(i);
+    }
+    processSaveGame(currentSlot);
+    loadOptions();
+    processOptions();
+}
+
+function loadSaveGame(slot){
+    save[slot].enabled=parseInt(saveFile[slot][0]);
+    save[slot].sector=saveFile[slot][1];
+    save[slot].difficulty=saveFile[slot][2];
+    save[slot].level=parseInt(saveFile[slot].substr(3,2));
+    save[slot].points=parseInt(saveFile[slot].substr(5,2));
+    var rawWeapons=saveFile[slot].substr(7,5)
+    for (var i=0;i<16;i++){
+        if (rawWeapons&(1<<i)){
+            save[slot].weapons[i]=1;
+        } else {
+            save[slot].weapons[i]=0;
+        }
+    }
+    save[slot].health=saveFile[slot][12];
+    save[slot].attack=saveFile[slot][13];
+    save[slot].assimilate=saveFile[slot][14];
+    save[slot].strength=saveFile[slot][15];
+    save[slot].crack=saveFile[slot][16];
+    save[slot].tasen=saveFile[slot][17];
+    save[slot].komato=saveFile[slot][18];
+    var rawTriggerB=saveFile[slot][19];
+    for (var i=1;i<=5;i<<=1){
+        save[slot].triggerB[i]=(i&rawTriggerB)/i;
+    }
+    var rawArmorC=parseInt(saveFile[slot][20]);
+    if (rawArmorC>=4){
+        save[slot].triggerC=1;
+        save[slot].armor=rawArmorC-4;
+    } else {
+        save[slot].triggerC=0;
+        save[slot].armor=rawArmorC;
+    }
+    save[slot].ammo[0]=parseInt(saveFile[slot].substr(21,2));
+    save[slot].ammo[1]=parseInt(saveFile[slot].substr(23,2));
+    save[slot].ammo[2]=parseInt(saveFile[slot].substr(25,2));;
+    save[slot].ammo[3]=parseInt(saveFile[slot].substr(27,2));
+    save[slot].ammo[4]=parseInt(saveFile[slot].substr(29,2));
+    save[slot].ammo[5]=parseInt(saveFile[slot].substr(31,2));
+    save[slot].kills=parseInt(saveFile[slot].substr(33,3));
+    save[slot].damage=parseInt(saveFile[slot].substr(36,3));
+    save[slot].cracks=parseInt(saveFile[slot].substr(39,3));
+    save[slot].fails=parseInt(saveFile[slot].substr(42,3));
+    save[slot].xp=parseInt(saveFile[slot].substr(45,3));
+    var rawTriggers=saveFile[slot].substr(48,2);
+    for (var i=1;i<=32;i<<=1){
+        save[slot].triggers[i]=(i&rawTriggers)/i;
+    }
+    save[slot].seconds=parseInt(saveFile[slot].substr(50,5));
+    save[slot].minutes=0;
+    save[slot].hours=0;
+    while (save[slot].seconds>60){
+        save[slot].seconds-=60;
+        save[slot].minutes+=1;
+    }
+    while (save[slot].minutes>60){
+        save[slot].minutes-=60
+        save[slot].hours+=1;
+    }
+}
+
+function processSaveGame(slot){
+    document.getElementById('enabled').checked=save[slot].enabled;
+    document.getElementById('sector').value=save[slot].sector;
+    document.getElementById('difficulty').value=save[slot].difficulty;
+    document.getElementById('level').value=save[slot].level;
+    document.getElementById('points').value=save[slot].points;
+    for (var i=0;i<16;i++){
+        document.getElementById('weapon'+i).checked=save[slot].weapons[i];
+    }
+    for (var i=0;i<6;i++){
+        document.getElementById('ammo'+i).value=save[slot].ammo[i];
+    }
+    document.getElementById('health').value=save[slot].health;
+    document.getElementById('attack').value=save[slot].attack;
+    document.getElementById('assimilate').value=save[slot].assimilate;
+    document.getElementById('strength').value=save[slot].strength;
+    document.getElementById('crack').value=save[slot].crack;
+    document.getElementById('tasen').value=save[slot].tasen;
+    document.getElementById('komato').value=save[slot].komato;
+    document.getElementById('armor').value=save[slot].armor;
+    document.getElementById('kills').value=save[slot].kills;
+    document.getElementById('damage').value=save[slot].damage;
+    document.getElementById('cracks').value=save[slot].cracks;
+    document.getElementById('fails').value=save[slot].fails;
+    document.getElementById('xp').value=save[slot].xp;
+    for (var i=1;i<=32;i<<=1){
+        document.getElementById('trigger'+i).checked=save[slot].triggers[i];
+    }
+    for (var i=1;i<=4;i<<=1){
+        document.getElementById('triggerB'+i).checked=save[slot].triggerB[i];
+    }
+    document.getElementById('triggerC4').checked=save[slot].triggerC;
+    document.getElementById('hours').value=save[slot].hours;
+    document.getElementById('minutes').value=save[slot].minutes;
+    document.getElementById('seconds').value=save[slot].seconds;
+}
+
+function saveGame(){
+    updateSaveGame(currentSlot);
+    for (var i=0;i<5;i++){
+        saveFile[i]=saveToText(i);
+    }
+    updateOptions();
+    saveFile[5]=optionsToText(i);
+    saveFile[6]=" "+getCheckSum();
+    
+    document.getElementById("saveContents").value="";
+    for (var i=0;i<10;i++){
+        document.getElementById("saveContents").value+=saveFile[i]+"\n";
+    }
+}
+
+function updateSaveGame(slot){
+    if (document.getElementById('enabled').checked){
+        save[slot].enabled=1;
+    } else {
+        save[slot].enabled=0;
+    }
+    save[slot].sector=document.getElementById('sector').value;
+    save[slot].difficulty=document.getElementById('difficulty').value;
+    save[slot].level=cap(document.getElementById('level').value,0,50);
+    save[slot].points=cap(document.getElementById('points').value,0,99);
+    for (var i=0;i<16;i++){
+        if (document.getElementById('weapon'+i).checked) {
+            save[slot].weapons[i]=1;
+        } else {
+            save[slot].weapons[i]=0;
+        }
+    }
+    for (var i=0;i<6;i++){
+        save[slot].ammo[i]=cap(document.getElementById('ammo'+i).value,0,99);
+    }
+    save[slot].health=cap(document.getElementById('health').value,0,9);
+    save[slot].attack=cap(document.getElementById('attack').value,0,9);
+    save[slot].assimilate=cap(document.getElementById('assimilate').value,0,9);
+    save[slot].strength=cap(document.getElementById('strength').value,0,9);
+    save[slot].crack=cap(document.getElementById('crack').value,0,9);
+    save[slot].tasen=cap(document.getElementById('tasen').value,0,9);
+    save[slot].komato=cap(document.getElementById('komato').value,0,9);
+    save[slot].armor=cap(document.getElementById('armor').value,0,2);
+    save[slot].kills=cap(document.getElementById('kills').value,0,999);
+    save[slot].damage=cap(document.getElementById('damage').value,0,999);
+    save[slot].cracks=cap(document.getElementById('cracks').value,0,999);
+    save[slot].fails=cap(document.getElementById('fails').value,0,999);
+    save[slot].xp=cap(document.getElementById('xp').value,0,99);
+    for (var i=1;i<=32;i<<=1){
+        save[slot].triggers[i]=document.getElementById('trigger'+i).checked;
+    }
+    for (var i=1;i<=4;i<<=1){
+        save[slot].triggerB[i]=document.getElementById('triggerB'+i).checked;
+    }
+    if (document.getElementById('triggerC4').checked){
+        save[slot].triggerC=1;
+    } else {
+        save[slot].triggerC=0;
+    }
+    save[slot].seconds=cap(document.getElementById('seconds').value,0,59);
+    save[slot].minutes=cap(document.getElementById('minutes').value,0,59);
+    save[slot].hours=cap(document.getElementById('hours').value,0,9);
+}
+
+function pad(number,pad){
+    if (typeof number === 'undefined'){
+        number=0;
+    }
+    var newNum=number.toString();
+    while (newNum.length<pad){
+        newNum="0"+newNum;
+    }
+    return newNum
+}
+
+function saveToText(slot){
+    saveText="";
+    saveText+=save[slot].enabled;
+    saveText+=save[slot].sector;
+    saveText+=save[slot].difficulty;
+    saveText+=pad(save[slot].level,2);
+    saveText+=pad(save[slot].points,2);
+    var rawWeapons=0;
+    for (var i=0;i<16;i++){
+        if (save[slot].weapons[i]){
+            rawWeapons+=(1<<i);
+        }
+    }
+    saveText+=pad(rawWeapons,5);
+    saveText+=save[slot].health;
+    saveText+=save[slot].attack;
+    saveText+=save[slot].assimilate;
+    saveText+=save[slot].strength;
+    saveText+=save[slot].crack;
+    saveText+=save[slot].tasen;
+    saveText+=save[slot].komato;
+    var triggerB=0;
+    for (var i=1;i<=4;i<<=1){
+        triggerB+=save[slot].triggerB[i]*i
+    }
+    saveText+=triggerB;
+    var armorC=save[slot].armor-save[slot].triggerC*-4; //Double Negative
+    saveText+=armorC;
+    for (var i=0;i<6;i++){
+        saveText+=pad(save[slot].ammo[i],2);
+    }
+    saveText+=pad(save[slot].kills,3);
+    saveText+=pad(save[slot].damage,3);
+    saveText+=pad(save[slot].cracks,3);
+    saveText+=pad(save[slot].fails,3);
+    saveText+=pad(save[slot].xp,3);
+    var triggers=0;
+    for (var i=1;i<=32;i<<=1){
+        triggers+=save[slot].triggers[i]*i;
+    }
+    saveText+=pad(triggers,2);
+    var time=parseInt(save[slot].seconds);
+    time+=60*save[slot].minutes;
+    time+=60*60*save[slot].hours;
+    saveText+=pad(time,5);
+    return saveText;
+}
+
+function changeSlot(newSlot){
+    updateSaveGame(currentSlot);
+    currentSlot=newSlot;
+    processSaveGame(newSlot);
+}
+
+function upperOnly(letter,defLetter){
+    if (letter.match(/[A-Z]/i)){
+        return letter.toUpperCase();
+    } else {
+        return defLetter;
+    }
+}
+
+function loadOptions(){
+    options.kick=saveFile[5][0];
+    options.fire=saveFile[5][1];
+    options.use=saveFile[5][2];
+    options.wep5=saveFile[5][3];
+    options.wep6=saveFile[5][4];
+    options.wep7=saveFile[5][5];
+    options.wep8=saveFile[5][6];
+    options.noShake=1&saveFile[5][7];
+    options.noGamma=(2&saveFile[5][7])/2;
+    options.noVoice=1&saveFile[5][8];
+    options.lowDetail=(2&saveFile[5][8])/2;
+    options.noSound=parseInt(saveFile[5][9]);
+    options.noMusic=parseInt(saveFile[5][10]);
+    options.hideTime=parseInt(saveFile[5][11]);
+    var rawPosters=saveFile[5].substr(12,6);
+    for (var i=0;i<18;i++){
+        if (i<10){
+            options.posters[i]=((1<<i)&rawPosters)/(1<<i);
+        } else {
+            options.extras[i-10]=((1<<i)&rawPosters)/(1<<i);
+        }
+    }
+    options.nHours=parseInt(saveFile[5][18]);
+    options.nMinutes=parseInt(saveFile[5].substr(19,2));
+    options.nSeconds=parseInt(saveFile[5].substr(21,2));
+    options.hHours=parseInt(saveFile[5][23]);
+    options.hMinutes=parseInt(saveFile[5].substr(24,2));
+    options.hSeconds=parseInt(saveFile[5].substr(26,2));
+    options.eHours=parseInt(saveFile[5][28]);
+    options.eMinutes=parseInt(saveFile[5].substr(29,2));
+    options.eSeconds=parseInt(saveFile[5].substr(31,2));
+    options.uHours=parseInt(saveFile[5][33]);
+    options.uMinutes=parseInt(saveFile[5].substr(34,2));
+    options.uSeconds=parseInt(saveFile[5].substr(36,2));
+    options.maxRibbons=parseInt(saveFile[5].substr(38,2));
+    var rawSds=parseInt(saveFile[5].substr(40,4));
+    for (var i=0;i<10;i++){
+        options.sds[i]=((1<<i)&rawSds)/(1<<i);
+    }
+    options.sk1=1&saveFile[5][44];
+    options.sk2=(2&saveFile[5][44])/2;
+    options.sk4=(4&saveFile[5][44])/4;
+    options.prev=saveFile[5][45];
+    options.super=saveFile[5][46];
+    options.next=saveFile[5][47];
+}
+
+function processOptions(){
+    document.getElementById('wep5').value=options.wep5;
+    document.getElementById('wep6').value=options.wep6;
+    document.getElementById('wep7').value=options.wep7;
+    document.getElementById('wep8').value=options.wep8;
+    document.getElementById('prev').value=options.prev;
+    document.getElementById('super').value=options.super;
+    document.getElementById('next').value=options.next;
+    document.getElementById('kick').value=options.kick;
+    document.getElementById('fire').value=options.fire;
+    document.getElementById('use').value=options.use;
+    document.getElementById('noVoice').checked=options.noVoice;
+    document.getElementById('noSound').checked=options.noSound;
+    document.getElementById('noMusic').checked=options.noMusic;
+    document.getElementById('noShake').checked=options.noShake;
+    document.getElementById('noGamma').checked=options.noGamma;
+    document.getElementById('hideTime').checked=options.hideTime;
+    document.getElementById('lowDetail').checked=options.lowDetail;
+    for (var i=0;i<10;i++){
+        document.getElementById('p'+(i+1)).checked=options.posters[i];
+    }
+    for (var i=0;i<8;i++){
+        document.getElementById('e'+(i+1)).checked=options.extras[i];
+    }
+    document.getElementById('nHours').value=options.nHours;
+    document.getElementById('nMinutes').value=options.nMinutes;
+    document.getElementById('nSeconds').value=options.nSeconds;
+    document.getElementById('hHours').value=options.hHours;
+    document.getElementById('hMinutes').value=options.hMinutes;
+    document.getElementById('hSeconds').value=options.hSeconds;
+    document.getElementById('eHours').value=options.eHours;
+    document.getElementById('eMinutes').value=options.eMinutes;
+    document.getElementById('eSeconds').value=options.eSeconds;
+    document.getElementById('uHours').value=options.uHours;
+    document.getElementById('uMinutes').value=options.uMinutes;
+    document.getElementById('uSeconds').value=options.uSeconds;
+    document.getElementById('maxRibbons').value=options.maxRibbons;
+    for (var i=0;i<10;i++){
+        document.getElementById('sd'+(i+1)).checked=options.sds[i];
+    }
+    document.getElementById('sk1').checked=options.sk1;
+    document.getElementById('sk2').checked=options.sk2;
+    document.getElementById('sk4').checked=options.sk4;
+}
+
+function updateOptions(){
+    options.wep5=upperOnly(document.getElementById('wep5').value,'Q');
+    options.wep6=upperOnly(document.getElementById('wep6').value,'W');
+    options.wep7=upperOnly(document.getElementById('wep7').value,'E');
+    options.wep8=upperOnly(document.getElementById('wep8').value,'R');
+    options.prev=upperOnly(document.getElementById('prev').value,'A');
+    options.super=upperOnly(document.getElementById('super').value,'S');
+    options.next=upperOnly(document.getElementById('next').value,'D');
+    options.kick=upperOnly(document.getElementById('kick').value,'Z');
+    options.fire=upperOnly(document.getElementById('fire').value,'X');
+    options.use=upperOnly(document.getElementById('use').value,'C');
+    options.noVoice=document.getElementById('noVoice').checked;
+    options.noSound=document.getElementById('noSound').checked;
+    options.noMusic=document.getElementById('noMusic').checked;
+    options.noShake=document.getElementById('noShake').checked;
+    options.noGamma=document.getElementById('noGamma').checked;
+    options.hideTime=document.getElementById('hideTime').checked;
+    options.lowDetail=document.getElementById('lowDetail').checked;
+    for (var i=0;i<10;i++){
+        options.posters[i]=document.getElementById('p'+(i+1)).checked;
+    }
+    for (var i=0;i<8;i++){
+        options.extras[i]=document.getElementById('e'+(i+1)).checked;
+    }
+    options.nHours=cap(document.getElementById('nHours').value,0,9);
+    options.nMinutes=cap(document.getElementById('nMinutes').value,0,59);
+    options.nSeconds=cap(document.getElementById('nSeconds').value,0,59);
+    options.hHours=cap(document.getElementById('hHours').value,0,9);
+    options.hMinutes=cap(document.getElementById('hMinutes').value,0,59);
+    options.hSeconds=cap(document.getElementById('hSeconds').value,0,59);
+    options.eHours=cap(document.getElementById('eHours').value,0,9);
+    options.eMinutes=cap(document.getElementById('eMinutes').value,0,59);
+    options.eSeconds=cap(document.getElementById('eSeconds').value,0,59);
+    options.uHours=cap(document.getElementById('uHours').value,0,9);
+    options.uMinutes=cap(document.getElementById('uMinutes').value,0,59);
+    options.uSeconds=cap(document.getElementById('uSeconds').value,0,59);
+    options.maxRibbons=cap(document.getElementById('maxRibbons').value,0,10);
+    for (var i=0;i<10;i++){
+        options.sds[i]=document.getElementById('sd'+(i+1)).checked;
+    }
+    options.sk1=document.getElementById('sk1').checked;
+    options.sk2=document.getElementById('sk2').checked;
+    options.sk4=document.getElementById('sk4').checked;
+}
+
+function optionsToText(){
+    var output="";
+    output+=options.kick;
+    output+=options.fire;
+    output+=options.use;
+    output+=options.wep5;
+    output+=options.wep6;
+    output+=options.wep7;
+    output+=options.wep8;
+    output+=(2*options.noGamma+options.noShake);
+    output+=(2*options.lowDetail+options.noVoice);
+    if (options.noSound)
+        output+=1;
+    else
+        output+=0;
+    if (options.noMusic)
+        output+=1;
+    else
+        output+=0;
+    if (options.hideTime)
+        output+=1;
+    else
+        output+=0;
+    var rawPosters=0;
+    for (var i=0;i<18;i++){
+        if (i<10){
+            rawPosters+=options.posters[i]<<i;
+        } else {
+            rawPosters+=options.extras[i-10]<<i;
+        }
+    }
+    output+=pad(rawPosters,6);
+    output+=options.nHours;
+    output+=pad(options.nMinutes,2);
+    output+=pad(options.nSeconds,2);
+    output+=options.hHours;
+    output+=pad(options.hMinutes,2);
+    output+=pad(options.hSeconds,2);
+    output+=options.eHours;
+    output+=pad(options.eMinutes,2);
+    output+=pad(options.eSeconds,2);
+    output+=options.uHours;
+    output+=pad(options.uMinutes,2);
+    output+=pad(options.uSeconds,2);
+    output+=pad(options.maxRibbons,2);
+    var rawSds=0;
+    for (var i=0;i<10;i++){
+        rawSds+=options.sds[i]<<i;
+    }
+    output+=pad(rawSds,4);
+    output+=(4*options.sk4+2*options.sk2+options.sk1);
+    output+=options.prev;
+    output+=options.super;
+    output+=options.next;
+    return output;
+}
+
+        </script>
+    </head>
+    <body>
+        <h1>Iji Savegame Editor</h1>
+        C&amp;P ijisav.sav here:<br>
+        <textarea id='saveContents' rows='12' cols='64'></textarea><br>
+        <input type='submit' onclick='javascript:loadSave()' value="load">
+            <input type="submit" value="save" onclick="javascript:saveGame();">
+            <label><input type="radio" name="slot" value="0" onchange="javascript:changeSlot(0);" checked="checked">0</label>
+            <label><input type="radio" name="slot" value="1" onchange="javascript:changeSlot(1);">1</label>
+            <label><input type="radio" name="slot" value="2" onchange="javascript:changeSlot(2);">2</label>
+            <label><input type="radio" name="slot" value="3" onchange="javascript:changeSlot(3);">3</label>
+            <label><input type="radio" name="slot" value="4" onchange="javascript:changeSlot(4);">4</label>
+            <br>
+        <div id='save' style="display:inline-block;">
+            <label><input type='checkbox' id='enabled'>Enabled</label><br>
+            Sector: <select id='sector'>
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+                <option value="7">7</option>
+                <option value="8">8</option>
+                <option value="9">9</option>
+                <option value="0">X</option>
+            </select>
+            Difficulty: <select id='difficulty'>
+                <option value="0">Normal</option>
+                <option value="1">Hard</option>
+                <option value="2">Extreme</option>
+                <option value="3">Ultimortal [Part 1]</option>
+            </select> <br>
+            Level: <input id='level' maxlength="2" size="1">
+            Points: <input id='points' maxlength="2" size="1"> 
+            XP: <input id='xp' maxlength="3" size="1"> <br>
+            <table>
+                <tbody>
+                    <tr>
+                        <td style="text-align:right;"><label>Buster Gun <input type='checkbox' id='weapon7'></label></td>
+                        <td>INF</td>
+                        <td><label><input type='checkbox' id='weapon15'> Banana Gun</label></td>
+                    </tr>
+                    <tr>
+                        <td style="text-align:right;"><label>Machine Gun <input type='checkbox' id='weapon0'></label></td>
+                        <td><input id='ammo0' maxlength="2" size="1"></td>
+                        <td><label><input type='checkbox' id='weapon8'> Splintergun</label></td>
+                    </tr>
+                    <tr>
+                        <td style="text-align:right;"><label>Rocket Launcher <input type='checkbox' id='weapon1'></label></td>
+                        <td><input id='ammo1' maxlength="2" size="1"></td>
+                        <td><label><input type='checkbox' id='weapon9'> Spread Rockets</label></td>
+                    </tr>
+                    <tr>
+                        <td style="text-align:right;"><label>MPFB Devastator <input type='checkbox' id='weapon2'></label></td>
+                        <td><input id='ammo2' maxlength="2" size="1"></td>
+                        <td><label><input type='checkbox' id='weapon10'> Nuke</label></td>
+                    </tr>
+                    <tr>
+                        <td style="text-align:right;"><label>Resonance Detonator <input type='checkbox' id='weapon3'></label></td>
+                        <td>INF</td>
+                        <td><label><input type='checkbox' id='weapon11'> Resonance Reflector</label></td>
+                    </tr>
+                    <tr>
+                        <td style="text-align:right;"><label>Pulse Cannon <input type='checkbox' id='weapon4'></label></td>
+                        <td><input id='ammo3' maxlength="2" size="1"></td>
+                        <td><label><input type='checkbox' id='weapon12'> Hyper Pulse</label></td>
+                    </tr>
+                    <tr>
+                        <td style="text-align:right;"><label>Shocksplinter <input type='checkbox' id='weapon5'></label></td>
+                        <td><input id='ammo4' maxlength="2" size="1"></td>
+                        <td><label><input type='checkbox' id='weapon13'> Plasma Cannon</label></td>
+                    </tr>
+                    <tr>
+                        <td style="text-align:right;"><label>Cyclic Fusion Ignition System <input type='checkbox' id='weapon6'></label></td>
+                        <td><input id='ammo5' maxlength="2" size="1"></td>
+                        <td><label><input type='checkbox' id='weapon14'> Velocithor V2-10</label></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table>
+                <tbody>
+                    <tr>
+                        <td>Health</td>
+                        <td><input id='health' maxlength="1" size="1"></td>
+                        <td>Crack</td>
+                        <td><input id='crack' maxlength="1" size="1"></td>
+                        <td>Kills</td>
+                        <td><input id='kills' maxlength="3" size="1"></td>
+                        <td>Damage</td>
+                        <td><input id='damage' maxlength="3" size="1"></td>
+                    </tr>
+                    <tr>
+                        <td>Attack</td>
+                        <td><input id='attack' maxlength="1" size="1"></td>
+                        <td>Tasen</td>
+                        <td><input id='tasen' maxlength="1" size="1"></td>
+                        <td>Cracks</td>
+                        <td><input id='cracks' maxlength="3" size="1"></td>
+                        <td>Fails</td>
+                        <td><input id='fails' maxlength="3" size="1"></td>
+                    </tr>
+                    <tr>
+                        <td>Assimilate</td>
+                        <td><input id='assimilate' maxlength="1" size="1"></td>
+                        <td>Komato</td>
+                        <td><input id='komato' maxlength="1" size="1"></td>
+                        <td>Time</td>
+                        <td colspan="3"><input id='hours' maxlength="1" size="1"> :
+                            <input id='minutes' maxlength="2" size="1"> .
+                            <input id='seconds' maxlength="2" size="1">
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Strength</td>
+                        <td><input id='strength' maxlength="1" size="1"></td>
+                        <td>Armor</td>
+                        <td colspan='5'><input id='armor' maxlength="1" size="1"></td>
+                    </tr>
+                </tbody>
+            </table>
+            <label><input type='checkbox' id='trigger1'>Truce Maintained (S3-S4), Dan Saved (S8-SX)</label><br>
+                <label><input type='checkbox' id='trigger2'>Spared Soldier in Sector 3 (S3-S9), bunker survived (S9-SX)</label><br>
+                <label><input type='checkbox' id='trigger4'>Accessed Annihilator Beta from Sector 8 (S8-SX)</label><br>
+                <label><input type='checkbox' id='trigger8'>Found previous sector's Ribbon (S1-SX)</label><br>
+                <label><input type='checkbox' id='trigger16'>Ultimortal difficulty [Part 2] (S1-SX)</label><br>
+                <label><input type='checkbox' id='trigger32'>Read the Traitor logbook (S6-S8)</label><br>
+                <label><input type='checkbox' id='triggerB1'>Read at least one of PAIE's logbooks (S3-S9)</label><br>
+                <label><input type='checkbox' id='triggerB2'>Beat Sector Z (S1-S2), Killed Trooper (S3-S4), <br> &nbsp; &nbsp; &nbsp;Proxima result (S7-S8), Met Ansaksie (S9-SX)</label><br>
+                <label><input type='checkbox' id='triggerB4'>Truce made, Vateilika alive (S3-SX)</label><br>
+                <label><input type='checkbox' id='triggerC4'>Did NOT call for the Komato (S4-SX)</label> <br>
+        </div>
+        <div id='options' style="display:inline-block;vertical-align: top;">
+            <table>
+                <tbody>
+                    <tr>
+                        <td>Wep5</td>
+                        <td><input id='wep5' maxlength="1" size="1"></td>
+                        <td>Wep6</td>
+                        <td><input id='wep6' maxlength="1" size="1"></td>
+                        <td>Wep7</td>
+                        <td><input id='wep7' maxlength="1" size="1"></td>
+                        <td>Wep8</td>
+                        <td><input id='wep8' maxlength="1" size="1"></td>
+                    </tr>
+                    <tr>
+                        <td colspan="2"></td>
+                        <td>Prev</td>
+                        <td><input id='prev' maxlength="1" size="1"></td>
+                        <td>Super</td>
+                        <td><input id='super' maxlength="1" size="1"></td>
+                        <td>Next</td>
+                        <td><input id='next' maxlength="1" size="1"></td>
+                    </tr>
+                    <tr>
+                        <th colspan="2"></th>
+                        <td>Kick</td>
+                        <td><input id='kick' maxlength="1" size="1"></td>
+                        <td>Fire</td>
+                        <td><input id='fire' maxlength="1" size="1"></td>
+                        <td>Use</td>
+                        <td><input id='use' maxlength="1" size="1"></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table>
+                <tbody>
+                    <tr>
+                        <td><label><input id='noVoice' type="checkbox">No Voice</label></td>
+                        <td><label><input id='noSound' type="checkbox">No Sound</label></td>
+                        <td><label><input id='noMusic' type="checkbox">No Music</label></td>
+                    </tr>
+                    <tr>
+                        <th></th>
+                        <td><label><input id='noShake' type="checkbox">No Shake</label></td>
+                        <td><label><input id='noGamma' type="checkbox">No Gamma</label></td>
+                    </tr>
+                    <tr>
+                        <th></th>
+                        <td><label><input id='hideTime' type="checkbox">Hide Time</label></td>
+                        <td><label><input id='lowDetail' type="checkbox">Low Detail</label></td>
+                    </tr>
+                </tbody>
+            </table>
+            Posters: <label><input id='p1' type="checkbox">1</label>
+                <label><input id='p2' type="checkbox">2</label>
+                <label><input id='p3' type="checkbox">3</label>
+                <label><input id='p4' type="checkbox">4</label>
+                <label><input id='p5' type="checkbox">5</label>
+                <label><input id='p6' type="checkbox">6</label>
+                <label><input id='p7' type="checkbox">7</label>
+                <label><input id='p8' type="checkbox">8</label>
+                <label><input id='p9' type="checkbox">9</label>
+                <label><input id='p10' type="checkbox">10</label> <br>
+            <table>
+                <tbody>
+                    <tr>
+                        <td><label><input id='e1' type="checkbox">Beat Game on Normal</label></td>
+                        <td><label><input id='e7' type="checkbox">Found Scrambler</label></td>
+                    </tr>
+                    <tr>
+                        <td><label><input id='e2' type="checkbox">Beat Game on Hard</label></td>
+                        <td><label><input id='e5' type="checkbox">Found Sector Z</label></td>
+                    </tr>
+                    <tr>
+                        <td><label><input id='e3' type="checkbox">Beat Game on Extreme</label></td>
+                        <td><label><input id='e4' type="checkbox">Earned "Nanomaster" rank</label></td>
+                    </tr>
+                    <tr>
+                        <td><label><input id='e8' type="checkbox">Beat Game on Ultimortal</label></td>
+                        <td><label><input id='e6' type="checkbox">Earned "Immortal" rank</label></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table>
+                <tbody>
+                    <tr>
+                        <td>Normal</td>
+                        <td><input id='nHours' maxlength="1" size="1"> :
+                            <input id='nMinutes' maxlength="2" size="1"> .
+                            <input id='nSeconds' maxlength="2" size="1">
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Hard</td>
+                        <td><input id='hHours' maxlength="1" size="1"> :
+                            <input id='hMinutes' maxlength="2" size="1"> .
+                            <input id='hSeconds' maxlength="2" size="1">
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Extreme</td>
+                        <td><input id='eHours' maxlength="1" size="1"> :
+                            <input id='eMinutes' maxlength="2" size="1"> .
+                            <input id='eSeconds' maxlength="2" size="1">
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Ultimitor</td>
+                        <td><input id='uHours' maxlength="1" size="1"> :
+                            <input id='uMinutes' maxlength="2" size="1"> .
+                            <input id='uSeconds' maxlength="2" size="1">
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            Ribbons Found: <input id='maxRibbons' maxlength="2" size="1"> <br>
+            Sudden Death: <label><input id='sd1' type="checkbox">1</label>
+                <label><input id='sd2' type="checkbox">2</label>
+                <label><input id='sd3' type="checkbox">3</label>
+                <label><input id='sd4' type="checkbox">4</label>
+                <label><input id='sd5' type="checkbox">5</label>
+                <label><input id='sd6' type="checkbox">6</label>
+                <label><input id='sd7' type="checkbox">7</label>
+                <label><input id='sd8' type="checkbox">8</label>
+                <label><input id='sd9' type="checkbox">9</label>
+                <label><input id='sd10' type="checkbox">X</label> <br>
+            Hidden Skills: <label><input id='sk1' type="checkbox">Teching</label>
+                <label><input id='sk2' type="checkbox">Nanofield Reboot</label>
+                <label><input id='sk4' type="checkbox">Retribution</label>
+        </div>
+    </body>
+</html>
