@@ -27,7 +27,7 @@ function addCharacters(line,amount){
     return sum;
 }
 
-function getCheckSum(){
+function getCheckSum(enigma){
     //Make sure we have all six important lines
     var text=saveFile;
     if (text.length<6){
@@ -105,15 +105,18 @@ function getCheckSum(){
     totalsum*=(totalsum.toString()).charCodeAt(6);
     totalsum+=1;
     
+	var output=totalsum;
     //Format it
-    //Scientific Notation.  14 decimal places.  4 E places
-    var output=totalsum.toExponential(14);
-    output=output.replace('e','E');
-    var expo=output.split("+")[1];
-    while (expo.length<4){
-        expo="0"+expo;
-    }
-    output=output.replace(/\+\d+/,"+"+expo);
+    if (!enigma){
+		//Scientific Notation.  14 decimal places.  4 E places
+		output=output.toExponential(14);
+		output=output.replace('e','E');
+		var expo=output.split("+")[1];
+		while (expo.length<4){
+			expo="0"+expo;
+		}
+		output=output.replace(/\+\d+/,"+"+expo);
+	}
     
     //Set It
     return output;
@@ -132,12 +135,21 @@ function cap(value,minVal,maxVal){
 
 function loadSave(){
     saveFile=document.getElementById('saveContents').value.split('\n'); 
+    if (saveFile.length<7){
+		alert("Invalid savefile.  You should have at least 7 lines.");
+		return;
+	}
     for (var i=0;i<5;i++){
         loadSaveGame(i);
     }
     processSaveGame(currentSlot);
     loadOptions();
     processOptions();
+    if (saveFile[6].match("E+")){
+		document.getElementById('enigma').value=0;
+	} else {
+		document.getElementById('enigma').value=1;
+	}
 }
 
 function loadSaveGame(slot){
@@ -245,11 +257,11 @@ function saveGame(){
     }
     updateOptions();
     saveFile[5]=optionsToText(i);
-    saveFile[6]=" "+getCheckSum();
+    saveFile[6]=" "+getCheckSum(parseInt(document.getElementById('enigma').value));
     
     document.getElementById("saveContents").value="";
-    for (var i=0;i<10;i++){
-        document.getElementById("saveContents").value+=saveFile[i]+"\n";
+    for (var i=0;i<Math.min(10,saveFile.length);i++){
+		document.getElementById("saveContents").value+=saveFile[i]+"\n";
     }
 }
 
@@ -574,8 +586,12 @@ function optionsToText(){
     </head>
     <body>
         <h1>Iji Savegame Editor</h1>
-        C&amp;P ijisav.sav here:<br>
+        C&amp;P ijisave.sav here:<br>
         <textarea id='saveContents' rows='12' cols='64'></textarea><br>
+        <select id="enigma">
+			<option value="0">1.6 Release</option>
+			<option value="1">Enigma Port</option>
+        </select>
         <input type='submit' onclick='javascript:loadSave()' value="load">
             <input type="submit" value="save" onclick="javascript:saveGame();">
             <label><input type="radio" name="slot" value="0" onchange="javascript:changeSlot(0);" checked="checked">0</label>
