@@ -1,6 +1,6 @@
 # ijiSaveEditor
-A dirt-simple save editor for the freeware game Iji.
-[Iji can be downloaded here if you haven't played it](http://www.remar.se/daniel/iji.php).
+A dirt-simple save editor for the freeware game Iji.  
+[Iji can be downloaded here if you haven't played it](http://www.remar.se/daniel/iji.php).  
 Also compatible with the [incomplete fan port to Enigma](https://bitbucket.org/sethhetu/iji_enigma/downloads).
 
 ## How to Use
