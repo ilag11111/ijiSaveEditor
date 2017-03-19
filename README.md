@@ -2,6 +2,7 @@
 A dirt-simple save editor for the freeware game Iji.  
 [Iji can be downloaded here if you haven't played it](http://www.remar.se/daniel/iji.php).  
 Also compatible with the [incomplete fan port to Enigma](https://bitbucket.org/sethhetu/iji_enigma/downloads).
+### Works in 1.7 for ijisave.sav, does not support ijisaveext.sav.
 
 ## How to Use
 1. [Click here to open](https://cdn.rawgit.com/ilag11111/ijiSaveEditor/229d8282094cdf078d0a45a5f0d7be43acb6dabc/saveHax.html) or download saveHax.html to your computer and open it in a web browser.
